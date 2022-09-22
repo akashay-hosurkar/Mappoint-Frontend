@@ -8,6 +8,12 @@
               <button aria-label="Clear" class="mapboxgl-ctrl-geocoder--button"></button>
           </div>
       </div> -->
+
+    <head>
+        <link rel="stylesheet"
+            href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.3.0/mapbox-gl-draw.css"
+            type="text/css" />
+    </head>
     <div>
         <select id="layer-change">
             <option selected value="mapbox://styles/mapbox/streets-v11">Dark</option>
@@ -28,6 +34,9 @@
     </div>
     <main class="w-screen h-screen">
         <v-map class="w-full h-full" :options="data.options" @loaded="onMapLoaded">
+            <div class="pre">
+                <pre id="info"></pre>
+            </div>
             <!-- <VLayerMapboxGeojson :sourceId="data.geoJsonSource.id" :source="data.geoJsonSource" layerId="myLayer"
                   :layer="data.geoJsonlayer" /> -->
         </v-map>
@@ -38,6 +47,7 @@ import mapboxgl from "mapbox-gl";
 import VMap from "v-mapbox";
 import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
 import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
+import MapboxDraw from "@mapbox/mapbox-gl-draw";
 function upload() {
     console.log("hii");
 }
@@ -46,7 +56,7 @@ const data = reactive({
         accessToken:
             "pk.eyJ1IjoibWF5dXJ3YWtpa2FyIiwiYSI6ImNsNmdjdGxwbjBiNGMzY282bWh0dng2c2kifQ.y-m4-zQKOeOOnDG5I1u6ng",
         style: "mapbox://styles/mapbox/outdoors-v11",
-        center: [-68.137343, 45.137451],
+        center: [73.7997, 18.6298],
         zoom: 8,
         maxZoom: 22,
         crossSourceCollisions: false,
@@ -56,7 +66,8 @@ const data = reactive({
         hash: false,
         minPitch: 0,
         maxPitch: 60,
-        container: "map",
+        container: 'map',
+        
     } as mapboxgl.MapboxOptions,
     map: {} as mapboxgl.Map,
     // geoJsonSource: {
@@ -104,6 +115,8 @@ const data = reactive({
     //     }
     // }
 });
+const res: any = await $fetch('http://localhost:3001/map').catch(err => { alert(err) })
+console.log(res);
 async function onMapLoaded(map: mapboxgl.Map) {
     // let colorSet = 0;
     // let color = [
@@ -123,6 +136,15 @@ async function onMapLoaded(map: mapboxgl.Map) {
     //     mapboxgl: mapboxgl
     //     })
     //     );
+
+    res.forEach(element => {
+        new mapboxgl.Marker({
+            color: "blue",
+            draggable: true
+        }).setLngLat([element.lati, element.long])
+            .addTo(map);
+
+    });
     data.map = map;
     mapboxgl.accessToken =
         "pk.eyJ1IjoibWF5dXJ3YWtpa2FyIiwiYSI6ImNsNmdjdGxwbjBiNGMzY282bWh0dng2c2kifQ.y-m4-zQKOeOOnDG5I1u6ng";
@@ -191,13 +213,23 @@ async function onMapLoaded(map: mapboxgl.Map) {
             'line-cap': "round"
         },
         paint: {
-            "line-color": "green", //blue color fill
+            "line-color": "red", //blue color fill
             "line-width": 1,
             "line-opacity": 1,
 
         },
     };
     data.map.addLayer(layer);
+    map.addControl(
+        new mapboxgl.GeolocateControl({
+            positionOptions: {
+                enableHighAccuracy: true,
+            },
+            trackUserLocation: true,
+            showUserHeading: true,
+        })
+    );
+    map.addControl(new mapboxgl.FullscreenControl());
 
 
     // console.log(map);
@@ -303,6 +335,53 @@ async function onMapLoaded(map: mapboxgl.Map) {
     //         }
     //     });
     // });
+    //Circle
+
+    //Circle
+    map.addSource("ethnicity", {
+        type: "vector",
+        url: "mapbox://examples.8fgz4egr",
+    });
+    map.addLayer({
+        id: "population",
+        type: "circle",
+        source: "ethnicity",
+        "source-layer": "sf2010",
+        paint: {
+            // Make circles larger as the user zooms from z12 to z22.
+            "circle-radius": {
+                base: 1.75,
+                stops: [
+                    [12, 2],
+                    [22, 180],
+                ],
+            },
+            // Color circles by ethnicity, using a `match` expression.
+            "circle-color": [
+                "match",
+                ["get", "ethnicity"],
+                "White",
+                "#FBB03B",
+                "Black",
+                "#223B53",
+                "Hispanic",
+                "#E55E5E",
+                "Asian",
+                "#3BB2D0",
+        /* other */ "#ccc",
+            ],
+        },
+    });
+
+    //Draw Tool
+    var Draw = new MapboxDraw();
+    map.addControl(Draw, "top-right");
+    //Draw tool end
+
+    //show lat longwhen mouse move
+    map.on("mousemove", (e) => {
+        document.getElementById("info").innerHTML = JSON.stringify(e.point) + "<br />" + JSON.stringify(e.lngLat.wrap())
+    });
 }
 </script>
 <style>
@@ -355,5 +434,15 @@ body {
 
 .w-full {
     width: 100%;
+}
+
+.pre {
+    z-index: 1;
+    top: 0px;
+    left: 600px;
+    position: relative;
+    width: 30%;
+    height: 9%;
+    background-color: white;
 }
 </style>
